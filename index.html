@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Chart Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A task-oriented, three-step workflow application. The structure guides the user through a logical sequence: 1. Upload Data, 2. Configure Chart, 3. View & Analyze. This linear flow is the most intuitive structure for a utility application, ensuring users can easily understand how to get from their raw data to a finished visualization without confusion. A dedicated "Sample Data" section is included to onboard users and demonstrate functionality immediately. Interactions are focused on form selections (dropdowns for chart type and data columns) which directly trigger the chart generation and update logic. This design prioritizes usability and function for a user focused on creating a presentation graphic. -->
+    <!-- Visualization & Content Choices: 
+        - Data Upload (User Goal) -> Guide User (App Goal) -> File Input Card with instructions (Presentation Method) -> User file selection (Interaction) -> Clear starting point for the app's workflow (Justification) -> HTML/Tailwind/JS (Method).
+        - Chart Configuration (User Goal) -> Enable Customization (App Goal) -> Dynamic Dropdown Selectors (Presentation Method) -> User selects chart type, labels, and data columns (Interaction) -> Gives user full control over the visualization of their specific data (Justification) -> JS DOM Manipulation (Method).
+        - Chart Display (User Goal) -> Present Data Visually (App Goal) -> Dynamically Generated Chart in a container (Presentation Method) -> Hover for tooltips (Interaction) -> The primary output of the application, rendering the user's configured data (Justification) -> Chart.js/Canvas (Library).
+        - Sample Data (User Goal) -> Demonstrate Functionality (App Goal) -> Button and instructional text (Presentation Method) -> Click to load pre-defined data (Interaction) -> Lowers the barrier to entry and shows users what a valid data structure looks like (Justification) -> JS (Method).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f3f1;
+            color: #374151;
+        }
+        .app-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .chart-container {
+            position: relative;
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            min-height: 450px;
+        }
+        .file-input-label {
+            border: 2px dashed #cbd5e1;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .file-input-label:hover {
+            background-color: #f8fafc;
+            border-color: #0d9488;
+        }
+        .control-btn {
+            background-color: #0d9488;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+        .control-btn:hover {
+            background-color: #0f766e;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+         .secondary-btn {
+            background-color: #e2e8f0;
+            color: #334155;
+        }
+        .secondary-btn:hover {
+             background-color: #cbd5e1;
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl font-bold text-teal-700">Presentation Chart Generator</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <section id="hero" class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-4">Create Your Perfect Chart</h1>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto">Upload your CSV or Excel file, select your data, and instantly generate a beautiful chart for your presentation.</p>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 space-y-8">
+                <div class="app-card">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center"><span class="bg-teal-600 text-white rounded-full h-8 w-8 text-lg font-bold flex items-center justify-center mr-3">1</span> Upload Data</h2>
+                    <input type="file" id="file-input" class="hidden" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                    <label for="file-input" id="file-input-label" class="file-input-label">
+                        <div id="upload-prompt">
+                            <p class="font-semibold text-teal-700">Click to browse</p>
+                            <p class="text-sm text-gray-500 mt-1">or drag & drop your file here</p>
+                            <p class="text-xs text-gray-400 mt-4">Supports: .csv, .xlsx, .xls</p>
+                        </div>
+                    </label>
+                    <div id="file-info" class="hidden mt-4 text-center">
+                        <p class="font-medium text-gray-700" id="file-name"></p>
+                        <p class="text-sm text-gray-500" id="file-status"></p>
+                    </div>
+                </div>
+
+                <div id="sample-data-card" class="app-card">
+                     <h2 class="text-xl font-bold text-gray-800 mb-4">Don't have a file?</h2>
+                     <p class="text-gray-600 mb-4 text-sm">Use sample data to see how it works. Your data should have at least one text column (for labels) and one number column (for values).</p>
+                     <button id="load-sample-btn" class="control-btn secondary-btn w-full">Load Sample Sales Data</button>
+                </div>
+
+                <div id="config-card" class="app-card hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center"><span class="bg-teal-600 text-white rounded-full h-8 w-8 text-lg font-bold flex items-center justify-center mr-3">2</span> Configure Chart</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="chart-type" class="block text-sm font-medium text-gray-700 mb-1">Chart Type</label>
+                            <select id="chart-type" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 appearance-none">
+                                <option value="bar">Bar Chart</option>
+                                <option value="line">Line Chart</option>
+                                <option value="pie">Pie Chart</option>
+                                <option value="doughnut">Doughnut Chart</option>
+                                <option value="polarArea">Polar Area Chart</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="label-column" class="block text-sm font-medium text-gray-700 mb-1">Labels (X-Axis)</label>
+                            <select id="label-column" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 appearance-none">
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="data-column" class="block text-sm font-medium text-gray-700 mb-1">Values (Y-Axis)</label>
+                            <select id="data-column" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 appearance-none">
+                            </select>
+                        </div>
+
+                        <div>
+                           <button id="generate-chart-btn" class="control-btn w-full mt-4">Generate Chart</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2">
+                <div class="app-card">
+                     <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center"><span class="bg-teal-600 text-white rounded-full h-8 w-8 text-lg font-bold flex items-center justify-center mr-3">3</span> View Chart</h2>
+                        <button id="download-chart-btn" class="control-btn hidden">Download Chart</button>
+                    </div>
+                     <div id="chart-wrapper" class="chart-container h-96 md:h-[500px] w-full max-w-4xl mx-auto flex items-center justify-center">
+                        <div id="chart-placeholder" class="text-center text-gray-500">
+                             <p class="text-lg font-medium">Your chart will appear here.</p>
+                             <p class="text-sm">Upload a file to get started.</p>
+                        </div>
+                        <canvas id="myChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+    <footer class="bg-gray-800 text-white mt-12">
+        <div class="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center">
+            <p>&copy; 2025 @ Md Jalal Feroj. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('file-input');
+            const fileInputLabel = document.getElementById('file-input-label');
+            const uploadPrompt = document.getElementById('upload-prompt');
+            const fileInfo = document.getElementById('file-info');
+            const fileNameEl = document.getElementById('file-name');
+            const fileStatusEl = document.getElementById('file-status');
+            const configCard = document.getElementById('config-card');
+            const chartTypeSelect = document.getElementById('chart-type');
+            const labelColumnSelect = document.getElementById('label-column');
+            const dataColumnSelect = document.getElementById('data-column');
+            const generateChartBtn = document.getElementById('generate-chart-btn');
+            const chartWrapper = document.getElementById('chart-wrapper');
+            const chartPlaceholder = document.getElementById('chart-placeholder');
+            const chartCanvas = document.getElementById('myChart');
+            const loadSampleBtn = document.getElementById('load-sample-btn');
+            const downloadChartBtn = document.getElementById('download-chart-btn');
+
+            let parsedData = [];
+            let chartInstance = null;
+            const chartColors = ['#14b8a6', '#f97316', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1'];
+            
+            fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileInputLabel.addEventListener(eventName, preventDefaults, false)
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileInputLabel.addEventListener(eventName, () => fileInputLabel.classList.add('bg-teal-50'), false)
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileInputLabel.addEventListener(eventName, () => fileInputLabel.classList.remove('bg-teal-50'), false)
+            });
+
+            fileInputLabel.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const file = dt.files[0];
+                handleFile(file);
+            }, false);
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function handleFile(file) {
+                if (!file) return;
+                
+                downloadChartBtn.classList.add('hidden');
+                fileNameEl.textContent = file.name;
+                fileStatusEl.textContent = 'Processing...';
+                fileInfo.classList.remove('hidden');
+                uploadPrompt.classList.add('hidden');
+
+                if (file.name.endsWith('.csv')) {
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: processData,
+                        error: handleError
+                    });
+                } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        const json = XLSX.utils.sheet_to_json(worksheet);
+                        processData({ data: json });
+                    };
+                    reader.onerror = handleError;
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    handleError({ message: 'Unsupported file type.' });
+                }
+            }
+
+            loadSampleBtn.addEventListener('click', () => {
+                 const sampleData = [
+                    { Month: 'January', Sales: 6500, Region: 'North' },
+                    { Month: 'February', Sales: 5900, Region: 'North' },
+                    { Month: 'March', Sales: 8000, Region: 'South' },
+                    { Month: 'April', Sales: 8100, Region: 'South' },
+                    { Month: 'May', Sales: 5600, Region: 'East' },
+                    { Month: 'June', Sales: 5500, Region: 'East' },
+                    { Month: 'July', Sales: 4000, Region: 'West' }
+                ];
+                fileNameEl.textContent = "Sample Sales Data";
+                fileInfo.classList.remove('hidden');
+                uploadPrompt.classList.add('hidden');
+                processData({ data: sampleData });
+            });
+
+            function processData(results) {
+                parsedData = results.data;
+                if (!parsedData || parsedData.length === 0) {
+                    handleError({ message: 'No data found in file.' });
+                    return;
+                }
+                fileStatusEl.textContent = `${parsedData.length} rows loaded.`;
+                const headers = Object.keys(parsedData[0]);
+                populateSelects(headers);
+                configCard.classList.remove('hidden');
+            }
+
+            function handleError(error) {
+                fileStatusEl.textContent = `Error: ${error.message}`;
+                fileStatusEl.classList.add('text-red-500');
+            }
+
+            function populateSelects(headers) {
+                labelColumnSelect.innerHTML = '';
+                dataColumnSelect.innerHTML = '';
+                const numericColumns = [];
+                const textColumns = [];
+
+                headers.forEach(header => {
+                    const isNumeric = parsedData.every(row => !isNaN(parseFloat(row[header])));
+                    if (isNumeric) {
+                        numericColumns.push(header);
+                    } else {
+                        textColumns.push(header);
+                    }
+                });
+
+                (textColumns.length > 0 ? textColumns : headers).forEach(header => {
+                    const option = document.createElement('option');
+                    option.value = header;
+                    option.textContent = header;
+                    labelColumnSelect.appendChild(option);
+                });
+                
+                (numericColumns.length > 0 ? numericColumns : headers).forEach(header => {
+                    const option = document.createElement('option');
+                    option.value = header;
+                    option.textContent = header;
+                    dataColumnSelect.appendChild(option);
+                });
+            }
+
+            generateChartBtn.addEventListener('click', () => {
+                const type = chartTypeSelect.value;
+                const labelCol = labelColumnSelect.value;
+                const dataCol = dataColumnSelect.value;
+
+                if (!labelCol || !dataCol) {
+                    fileStatusEl.textContent = 'Please select columns for both labels and data.';
+                    fileStatusEl.classList.add('text-red-500');
+                    return;
+                }
+                fileStatusEl.textContent = `${parsedData.length} rows loaded.`;
+                fileStatusEl.classList.remove('text-red-500');
+                
+                const groupedData = {};
+                parsedData.forEach(row => {
+                    const label = row[labelCol];
+                    const value = parseFloat(row[dataCol]);
+                    if (!isNaN(value)) {
+                         if (groupedData[label]) {
+                            groupedData[label] += value;
+                        } else {
+                            groupedData[label] = value;
+                        }
+                    }
+                });
+
+                const labels = Object.keys(groupedData);
+                const data = Object.values(groupedData);
+
+                const chartData = {
+                    labels,
+                    datasets: [{
+                        label: dataCol,
+                        data,
+                        backgroundColor: type === 'line' ? 'transparent' : chartColors,
+                        borderColor: type === 'line' ? chartColors[0] : '#ffffff',
+                        borderWidth: 2,
+                        tension: 0.1
+                    }]
+                };
+
+                renderChart(type, chartData);
+            });
+
+            function renderChart(type, data) {
+                if (chartInstance) {
+                    chartInstance.destroy();
+                }
+                chartPlaceholder.classList.add('hidden');
+                chartCanvas.classList.remove('hidden');
+                downloadChartBtn.classList.remove('hidden');
+
+                const customDataLabels = {
+                    id: 'customDataLabels',
+                    afterDatasetsDraw(chart, args, options) {
+                        const { ctx, chartArea: { top } } = chart;
+                        if (chart.config.type !== 'bar') {
+                            return;
+                        }
+
+                        ctx.save();
+                        ctx.font = '600 12px Inter';
+                        ctx.textAlign = 'center';
+
+                        for (let i = 0; i < chart.data.datasets.length; i++) {
+                            const meta = chart.getDatasetMeta(i);
+                            if(meta.hidden) continue;
+                            
+                            for (let j = 0; j < meta.data.length; j++) {
+                                const element = meta.data[j];
+                                const dataValue = chart.data.datasets[i].data[j];
+                                const yPos = element.y;
+
+                                let textY = yPos - 5;
+                                let color = '#374151';
+                                
+                                if (yPos < top + 20) {
+                                    textY = yPos + 15;
+                                    color = '#ffffff';
+                                }
+                                
+                                ctx.fillStyle = color;
+                                ctx.fillText(dataValue.toLocaleString(), element.x, textY);
+                            }
+                        }
+                        ctx.restore();
+                    }
+                };
+
+                chartInstance = new Chart(chartCanvas.getContext('2d'), {
+                    type,
+                    data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { font: { family: "'Inter', sans-serif" } }
+                            },
+                            tooltip: {
+                                bodyFont: { family: "'Inter', sans-serif" },
+                                titleFont: { family: "'Inter', sans-serif" },
+                                backgroundColor: '#334155',
+                                padding: 10,
+                                cornerRadius: 4,
+                            }
+                        },
+                        scales: (type === 'bar' || type === 'line') ? {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#f1f5f9' },
+                                grace: '5%' 
+                            },
+                            x: { grid: { display: false } }
+                        } : {}
+                    },
+                    plugins: [customDataLabels]
+                });
+            }
+
+            downloadChartBtn.addEventListener('click', () => {
+                if (chartInstance) {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = chartCanvas.width;
+                    tempCanvas.height = chartCanvas.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    tempCtx.fillStyle = 'white';
+                    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    
+                    tempCtx.drawImage(chartCanvas, 0, 0);
+
+                    const link = document.createElement('a');
+                    link.href = tempCanvas.toDataURL('image/png');
+                    link.download = 'chart.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+
