@@ -176,7 +176,7 @@
     </main>
     <footer class="bg-gray-800 text-white mt-12">
         <div class="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center">
-            <p>&copy; 2025 @ Md Jalal Feroj. All rights reserved.</p>
+            <p>&copy; 2025 Your Company Name. All rights reserved.</p>
         </div>
     </footer>
 
@@ -295,31 +295,35 @@
             function populateSelects(headers) {
                 labelColumnSelect.innerHTML = '';
                 dataColumnSelect.innerHTML = '';
-                const numericColumns = [];
-                const textColumns = [];
 
                 headers.forEach(header => {
-                    const isNumeric = parsedData.every(row => !isNaN(parseFloat(row[header])));
-                    if (isNumeric) {
-                        numericColumns.push(header);
-                    } else {
-                        textColumns.push(header);
-                    }
-                });
+                    const labelOption = document.createElement('option');
+                    labelOption.value = header;
+                    labelOption.textContent = header;
+                    labelColumnSelect.appendChild(labelOption);
 
-                (textColumns.length > 0 ? textColumns : headers).forEach(header => {
-                    const option = document.createElement('option');
-                    option.value = header;
-                    option.textContent = header;
-                    labelColumnSelect.appendChild(option);
+                    const dataOption = document.createElement('option');
+                    dataOption.value = header;
+                    dataOption.textContent = header;
+                    dataColumnSelect.appendChild(dataOption);
                 });
                 
-                (numericColumns.length > 0 ? numericColumns : headers).forEach(header => {
-                    const option = document.createElement('option');
-                    option.value = header;
-                    option.textContent = header;
-                    dataColumnSelect.appendChild(option);
-                });
+                const numericColumns = headers.filter(header => parsedData.every(row => row[header] === null || row[header] === '' || !isNaN(parseFloat(row[header]))));
+                const textColumns = headers.filter(header => !numericColumns.includes(header));
+                
+                if (textColumns.length > 0) {
+                    labelColumnSelect.value = textColumns[0];
+                } else if (headers.length > 0) {
+                    labelColumnSelect.value = headers[0];
+                }
+
+                if (numericColumns.length > 0) {
+                    dataColumnSelect.value = numericColumns[0];
+                } else if (headers.length > 1) {
+                    dataColumnSelect.value = headers[1];
+                } else if (headers.length > 0) {
+                    dataColumnSelect.value = headers[0];
+                }
             }
 
             generateChartBtn.addEventListener('click', () => {
@@ -467,5 +471,4 @@
     </script>
 </body>
 </html>
-
 
